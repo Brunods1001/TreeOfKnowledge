@@ -99,10 +99,10 @@ questions_init =
         [ QuestionDependency (Question "Should this patient receive HIV screening?") Nothing
         , QuestionDependency (Question "Have you had vaginal or anal sex in the past 6 months?") Nothing
         , QuestionDependency (Question "IVDU?") Nothing
-        , QuestionDependency (Question "Does their partner have HIV?") (Just 0)
-        , QuestionDependency (Question "Did they have a bacterial STI recently?") (Just 0)
-        , QuestionDependency (Question "Do they have a history of inconsistent or no condom use?") (Just 0)
         , QuestionDependency (Question "Does their partner have HIV?") (Just 1)
+        , QuestionDependency (Question "Did they have a bacterial STI recently?") (Just 1)
+        , QuestionDependency (Question "Do they have a history of inconsistent or no condom use?") (Just 1)
+        , QuestionDependency (Question "Does their partner have HIV?") (Just 2)
         ]
 
 
