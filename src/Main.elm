@@ -33,6 +33,8 @@ type Msg
     | AnswerNo
     | SkipAnswer
     | NextQuestion
+    | CheckResult
+    | EndQuiz
 
 
 type Answer
@@ -88,21 +90,15 @@ type alias Model =
     }
 
 
-question_order : Array.Array String
-question_order =
-    Array.fromList [ "1", "2", "1a", "1b", "1c" ]
-
-
 questions_init : QuestionDependencies
 questions_init =
     Array.fromList
-        [ QuestionDependency (Question "Should this patient receive HIV screening?") Nothing
-        , QuestionDependency (Question "Have you had vaginal or anal sex in the past 6 months?") Nothing
+        [ QuestionDependency (Question "Have you had vaginal or anal sex in the past 6 months?") Nothing
         , QuestionDependency (Question "IVDU?") Nothing
+        , QuestionDependency (Question "Does their partner have HIV?") (Just 0)
+        , QuestionDependency (Question "Did they have a bacterial STI recently?") (Just 0)
+        , QuestionDependency (Question "Do they have a history of inconsistent or no condom use?") (Just 0)
         , QuestionDependency (Question "Does their partner have HIV?") (Just 1)
-        , QuestionDependency (Question "Did they have a bacterial STI recently?") (Just 1)
-        , QuestionDependency (Question "Do they have a history of inconsistent or no condom use?") (Just 1)
-        , QuestionDependency (Question "Does their partner have HIV?") (Just 2)
         ]
 
 
@@ -133,7 +129,7 @@ update msg model =
                     }
 
                 AnswerYes ->
-                    update NextQuestion
+                    update CheckResult
                         { model
                             | pastAnswers = Array.append model.pastAnswers (Array.fromList [ QuestionDependencyAnswer cq Yes ])
                         }
@@ -149,6 +145,22 @@ update msg model =
                         { model
                             | pastAnswers = Array.append model.pastAnswers (Array.fromList [ QuestionDependencyAnswer cq Unanswered ])
                         }
+
+                CheckResult ->
+                    let
+                        maybe_result =
+                            determineResult model
+                    in
+                    case maybe_result of
+                        Just result ->
+                            if result == True then
+                                update EndQuiz model
+
+                            else
+                                update NextQuestion model
+
+                        Nothing ->
+                            update NextQuestion model
 
                 NextQuestion ->
                     case getNextQuestion model of
@@ -182,6 +194,13 @@ update msg model =
                                 , pageView = PostQuiz
                             }
 
+                EndQuiz ->
+                    { model
+                        | currentQuestion = Nothing
+                        , result = determineResult model
+                        , pageView = PostQuiz
+                    }
+
         Nothing ->
             case msg of
                 StartQuiz ->
@@ -213,24 +232,31 @@ determineResult : Model -> Maybe Bool
 determineResult model =
     let
         maybe_q1 =
-            Array.get 1 model.pastAnswers
+            Array.get 0 model.pastAnswers
 
         maybe_q2 =
-            Array.get 2 model.pastAnswers
+            Array.get 1 model.pastAnswers
 
         maybe_q3 =
-            Array.get 3 model.pastAnswers
+            Array.get 2 model.pastAnswers
 
         maybe_q4 =
-            Array.get 4 model.pastAnswers
+            Array.get 3 model.pastAnswers
 
         maybe_q5 =
-            Array.get 5 model.pastAnswers
+            Array.get 4 model.pastAnswers
 
         maybe_q6 =
-            Array.get 6 model.pastAnswers
+            Array.get 5 model.pastAnswers
     in
     case [ maybe_q1, maybe_q2, maybe_q3, maybe_q4, maybe_q5, maybe_q6 ] of
+        [ Just q1, Just q2, Nothing, Nothing, Nothing, Nothing ] ->
+            if q1.answer == Yes && q2.answer == Yes then
+                Just True
+
+            else
+                Just False
+
         [ Just q1, Just q2, Just q3, Just q4, Just q5, Just q6 ] ->
             if q1.answer == No && q2.answer == No then
                 Just False
@@ -328,10 +354,9 @@ view model =
 
 
 viewHome : Model -> Html Msg
-viewHome model =
+viewHome _ =
     div []
-        [ text "HOME"
-        , startQuizButton "Start"
+        [ startQuizButton "Start"
         ]
 
 
@@ -372,18 +397,8 @@ showHIVScreen =
 
 
 viewHIVScreen : Model -> Html Msg
-viewHIVScreen model =
-    case Array.get 0 model.pastAnswers of
-        Just q ->
-            case q.answer of
-                Yes ->
-                    showHIVScreen
-
-                _ ->
-                    div [] []
-
-        Nothing ->
-            div [] []
+viewHIVScreen _ =
+    showHIVScreen
 
 
 viewPostQuiz : Model -> Html Msg
@@ -392,7 +407,7 @@ viewPostQuiz model =
         [ startQuizButton "Retake test"
         , a [ target "_", href "https://hivrisk.cdc.gov/risk-estimator-tool/#-mb|rvi.stdn.stdp" ] [ text "See the CDC's risk estimator tool for more information" ]
         , hr [] []
-        , viewHIVScreen model
+        , showHIVScreen
         , showResult model
         ]
 
